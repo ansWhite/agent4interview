@@ -1,0 +1,115 @@
+# ==========================================================
+# InsightAgent - Git 忽略规则
+# 原则：依赖 / 构建产物 / 本地密钥 / 运行时数据 一律不入库
+# 保留：源码、锁文件、配置模板(.env.example)、评测数据
+# ==========================================================
+
+# ---------- 环境与密钥（最优先，绝不能提交）----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 虚拟环境（本机 .venv 约 103 MB）
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# 打包与安装产物
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+
+# 类型检查 / 测试 / 覆盖率缓存
+.mypy_cache/
+.dmypy.json
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+coverage/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ---------- Node / 前端 ----------
+# 依赖（node_modules 约 327 MB，最大的一块）
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# Next.js 构建产物（apps/web/.next 约 46 MB）
+.next/
+out/
+.swc/
+.turbo/
+.vercel/
+
+# 缓存 / 打包 / 覆盖率
+.cache/
+.parcel-cache/
+.vite/
+dist/
+apps/web/coverage/
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# TypeScript 增量编译信息
+*.tsbuildinfo
+
+# ---------- 数据库与运行时数据 ----------
+# 本地 SQLite 数据库（insight_agent.db 等）
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+
+# 本地索引 / 上传文件 / 向量存储
+data/index/
+data/uploads/
+data/chroma/
+data/faiss/
+.chroma/
+
+# ---------- 容器 / 基础设施本地态 ----------
+.docker/
+docker-compose.override.yml
+infra/.env
+
+# ---------- 编辑器 / 操作系统 ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini

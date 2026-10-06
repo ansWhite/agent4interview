@@ -1,0 +1,8 @@
+{
+  "include": ["apps/api", "packages", "tests"],
+  "exclude": ["**/__pycache__"],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard",
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false
+}

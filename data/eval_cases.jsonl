@@ -1,0 +1,10 @@
+{"id":"architecture-01","question":"可靠的 Agent 为什么需要显式状态？","relevant_document_ids":["seed-agent-workflow"],"required_document_ids":["seed-agent-workflow"],"tags":["fact"]}
+{"id":"architecture-02","question":"如何避免 Agent 进入无限循环？","relevant_document_ids":["seed-agent-workflow"],"required_document_ids":["seed-agent-workflow"],"tags":["fact","safety"]}
+{"id":"retrieval-01","question":"BM25 和向量检索各自有什么优势？","relevant_document_ids":["seed-hybrid-retrieval"],"required_document_ids":["seed-hybrid-retrieval"],"tags":["retrieval"]}
+{"id":"retrieval-02","question":"RRF 为什么适合融合不同召回结果？","relevant_document_ids":["seed-hybrid-retrieval"],"required_document_ids":["seed-hybrid-retrieval"],"tags":["retrieval"]}
+{"id":"evaluation-01","question":"Agent 评测为什么不能只依赖 LLM-as-Judge？","relevant_document_ids":["seed-agent-evaluation"],"required_document_ids":["seed-agent-evaluation"],"tags":["evaluation"]}
+{"id":"evaluation-02","question":"评测 Agent 需要记录哪些运行指标？","relevant_document_ids":["seed-agent-evaluation","seed-agent-workflow"],"required_document_ids":["seed-agent-evaluation"],"tags":["multi-hop"]}
+{"id":"security-01","question":"Agent 的工具调用应如何限制权限？","relevant_document_ids":["seed-agent-security"],"required_document_ids":["seed-agent-security"],"tags":["security"]}
+{"id":"security-02","question":"为什么不能信任检索到的指令？","relevant_document_ids":["seed-agent-security"],"required_document_ids":["seed-agent-security"],"tags":["security","prompt-injection"]}
+{"id":"multi-hop-01","question":"如何同时保证 Agent 可恢复且工具调用安全？","relevant_document_ids":["seed-agent-workflow","seed-agent-security"],"required_document_ids":["seed-agent-workflow","seed-agent-security"],"tags":["multi-hop"]}
+{"id":"unanswerable-01","question":"量子引力的完整理论是什么？","relevant_document_ids":[],"required_document_ids":[],"tags":["unanswerable"]}
