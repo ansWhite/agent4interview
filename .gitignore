@@ -50,6 +50,9 @@ coverage/
 # Jupyter
 .ipynb_checkpoints/
 
+# 测试临时目录（见 REPRODUCE.md 排错说明）
+.tmp_pytest/
+
 # ---------- Node / 前端 ----------
 # 依赖（node_modules 约 327 MB，最大的一块）
 node_modules/
