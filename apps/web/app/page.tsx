@@ -13,7 +13,71 @@ const NODE_LABELS: Record<string, string> = {
   synthesizer: "答案合成",
   verifier: "引用校验",
   workflow: "工作流",
+  calculator: "计算器",
+  web_search: "联网检索",
+  web_fetch: "网页抓取",
 };
+
+function truncate(text: string, max: number) {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function formatTime(iso: string) {
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+interface DrawerItem {
+  title?: unknown;
+  url?: unknown;
+  score?: unknown;
+}
+
+function EventDrawer({ event, onClose }: { event: AgentEvent; onClose: () => void }) {
+  const items = Array.isArray(event.data.items) ? (event.data.items as DrawerItem[]) : null;
+  const rest: Record<string, unknown> = { ...event.data };
+  if (items) delete rest.items;
+
+  return (
+    <div className="drawerOverlay" onClick={onClose}>
+      <aside className="eventDrawer" onClick={(stop) => stop.stopPropagation()}>
+        <header className="drawerHeader">
+          <div>
+            <span className="drawerType">{event.event_type}</span>
+            <h3>{NODE_LABELS[event.node] ?? event.node}</h3>
+          </div>
+          <button type="button" className="drawerClose" onClick={onClose} aria-label="关闭">×</button>
+        </header>
+        <div className="drawerBody">
+          <p className="drawerMessage">{event.message}</p>
+          <div className="drawerMeta">
+            <span>#{event.sequence}</span>
+            <span>{formatTime(event.created_at)}</span>
+          </div>
+          {items && items.length > 0 && (
+            <div className="drawerItems">
+              {items.map((item, index) => (
+                <a
+                  className="drawerItem"
+                  key={index}
+                  href={typeof item.url === "string" && item.url ? item.url : undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <strong>{truncate(String(item.title ?? "(无标题)"), 60)}</strong>
+                  <span className="drawerItemUrl">{String(item.url ?? "")}</span>
+                  <small>score {String(item.score ?? "-")}</small>
+                </a>
+              ))}
+            </div>
+          )}
+          <pre className="drawerJson">{JSON.stringify(rest, null, 2)}</pre>
+        </div>
+      </aside>
+    </div>
+  );
+}
 
 export default function Home() {
   const [question, setQuestion] = useState("为什么可靠的 Agent 需要显式状态、执行预算和离线评测？");
@@ -21,6 +85,7 @@ export default function Home() {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<AgentEvent | null>(null);
   const [documentTitle, setDocumentTitle] = useState("");
   const [documentContent, setDocumentContent] = useState("");
   const [documentNotice, setDocumentNotice] = useState("");
@@ -28,6 +93,14 @@ export default function Home() {
   const unsubscribe = useRef<(() => void) | null>(null);
 
   useEffect(() => () => unsubscribe.current?.(), []);
+
+  useEffect(() => {
+    function handleKeyDown(keyboard: KeyboardEvent) {
+      if (keyboard.key === "Escape") setSelectedEvent(null);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   async function refreshTask(id: string) {
     const nextTask = await getTask(id);
@@ -42,6 +115,7 @@ export default function Home() {
     setBusy(true);
     setError("");
     setEvents([]);
+    setSelectedEvent(null);
     try {
       const created = await createTask(question.trim());
       setTask(created);
@@ -147,11 +221,19 @@ export default function Home() {
             <div className="panelHeader"><span>LIVE TRACE</span><span>{events.length} EVENTS</span></div>
             <div className="traceList">
               {events.length ? events.map((item) => (
-                <div className="traceItem" key={`${item.sequence}-${item.node}`}>
+                <button
+                  type="button"
+                  className={`traceItem${selectedEvent === item ? " active" : ""}`}
+                  key={`${item.sequence}-${item.node}`}
+                  onClick={() => setSelectedEvent(item)}
+                >
                   <span className="traceIndex">{String(item.sequence).padStart(2, "0")}</span>
-                  <div><strong>{NODE_LABELS[item.node] ?? item.node}</strong><p>{item.message}</p></div>
-                </div>
+                  <span className="traceNode">{NODE_LABELS[item.node] ?? item.node}</span>
+                  <span className="traceMessage">{truncate(item.message, 26)}</span>
+                  <span className="traceTime">{formatTime(item.created_at)}</span>
+                </button>
               )) : <div className="emptyState compact">等待执行轨迹。</div>}
+              <p className="traceHint">点击任意一行查看事件详情</p>
             </div>
             <div className="budget">
               <span>STEP BUDGET</span>
@@ -184,6 +266,8 @@ export default function Home() {
           </section>
         </aside>
       </section>
+
+      {selectedEvent && <EventDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
     </main>
   );
 }

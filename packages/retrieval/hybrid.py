@@ -33,6 +33,7 @@ class SearchHit(BaseModel):
     lexical_score: float
     dense_score: float
     rank_score: float
+    coverage: float = 0.0
 
     def to_evidence(self) -> Evidence:
         return Evidence(
@@ -113,6 +114,7 @@ class HybridRetriever:
                     lexical_score=round(lexical[document_id], 6),
                     dense_score=round(dense[document_id], 6),
                     rank_score=round(fused[document_id], 6),
+                    coverage=round(coverage, 6),
                 )
             )
         return sorted(hits, key=lambda hit: hit.score, reverse=True)[:limit]

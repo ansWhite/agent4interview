@@ -81,13 +81,91 @@ button.secondary { width: 100%; color: var(--ink); background: var(--mint); }
 .evidenceCard p { max-height: 112px; overflow: hidden; margin: 0 0 12px; color: #4f5953; font-size: 13px; line-height: 1.65; }
 .evidenceCard small { color: #89928c; overflow-wrap: anywhere; }
 
-.traceList { max-height: 420px; overflow: auto; padding: 8px 18px; }
-.traceItem { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 14px 0; border-bottom: 1px solid #e8ece8; }
-.traceIndex { color: var(--green); font: 700 11px ui-monospace, monospace; }
-.traceItem strong { font-size: 13px; }
-.traceItem p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.traceList { max-height: 420px; overflow: auto; padding: 8px 12px; }
+.traceItem {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; margin: 1px 0; padding: 8px 10px;
+  border: 0; border-radius: 8px;
+  background: transparent; color: var(--ink);
+  text-align: left; font: inherit; font-size: 12px;
+  cursor: pointer; transition: background .15s ease;
+}
+.traceItem:hover { background: #e9efe9; }
+.traceItem.active { background: #dcebdd; }
+.traceIndex { flex: none; color: var(--green); font: 700 10px ui-monospace, monospace; }
+.traceNode { flex: none; font-weight: 700; font-size: 12px; white-space: nowrap; }
+.traceMessage {
+  flex: 1; min-width: 0; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.traceTime { flex: none; color: #9aa39d; font: 10px ui-monospace, monospace; }
+.traceHint { margin: 8px 0 4px; text-align: center; color: #a8b1ab; font-size: 10px; letter-spacing: .06em; }
 .budget { padding: 14px 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--muted); font: 700 11px ui-monospace, monospace; }
 .budget strong { color: var(--ink); }
+
+/* ---- 事件详情抽屉 ---- */
+.drawerOverlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(13, 20, 17, 0.34);
+  display: flex; justify-content: flex-end;
+  animation: fadeIn .18s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.eventDrawer {
+  width: min(460px, 92vw); height: 100%;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  box-shadow: -18px 0 48px rgba(13, 20, 17, 0.2);
+  display: flex; flex-direction: column;
+  animation: slideIn .22s ease;
+  overflow: hidden;
+}
+@keyframes slideIn { from { transform: translateX(48px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawerHeader {
+  flex: none; padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.drawerHeader h3 { margin: 6px 0 0; font-size: 17px; letter-spacing: -0.01em; }
+.drawerType {
+  color: var(--green);
+  font: 700 10px ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: 0.13em; text-transform: uppercase;
+}
+.drawerClose {
+  width: 34px; height: 34px; padding: 0;
+  display: grid; place-items: center;
+  color: var(--ink); background: #eef3ee;
+  font-size: 18px; line-height: 1;
+}
+.drawerClose:hover { background: #dcebdd; }
+.drawerBody { flex: 1; overflow-y: auto; padding: 18px 20px 28px; }
+.drawerMessage { margin: 0 0 10px; font-size: 14px; line-height: 1.6; }
+.drawerMeta {
+  display: flex; gap: 14px; margin-bottom: 16px;
+  color: #9aa39d; font: 11px ui-monospace, monospace;
+}
+.drawerItems { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.drawerItem {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 14px;
+  background: #eef3ee; border: 1px solid var(--line); border-radius: 10px;
+  text-decoration: none; color: var(--ink);
+}
+.drawerItem:hover { border-color: var(--green); }
+.drawerItem strong { font-size: 13px; line-height: 1.45; }
+.drawerItemUrl {
+  color: var(--green); font: 11px ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+.drawerItem small { color: var(--muted); font: 11px ui-monospace, monospace; }
+.drawerJson {
+  margin: 0; padding: 14px;
+  background: #101815; color: #c9f3d8;
+  border-radius: 10px;
+  font: 12px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
 
 .utilityPanel form, .utilityPanel > p, .utilityPanel > button, .utilityPanel > .metrics { margin: 16px; }
 .utilityPanel form { display: flex; flex-direction: column; gap: 10px; }

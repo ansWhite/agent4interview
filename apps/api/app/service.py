@@ -10,13 +10,18 @@ from uuid import uuid4
 from apps.api.app.config import Settings
 from apps.api.app.database import Repository
 from apps.api.app.schemas import EvalRunResponse
-from packages.agent_core.llm import DeterministicFakeModel
+from packages.agent_core.deepseek import DeepSeekModel
+from packages.agent_core.llm import DeterministicFakeModel, ModelProvider
 from packages.agent_core.models import AgentEvent, AgentState, Budget, TaskStatus
 from packages.agent_core.workflow import ResearchAgent
 from packages.evaluation.runner import EvalCase, EvaluationRunner
 from packages.retrieval.chunking import chunk_text
 from packages.retrieval.hybrid import Document, HybridRetriever
+from packages.tools.base import Tool
+from packages.tools.calculator import CalculatorTool
 from packages.tools.registry import ToolRegistry
+from packages.tools.web_fetch import WebFetchTool
+from packages.tools.web_search import WebSearchTool
 
 
 class TaskService:
@@ -26,13 +31,35 @@ class TaskService:
         self.repository = repository
         self.retriever = retriever
         self.settings = settings
-        self.model = DeterministicFakeModel()
-        self.tools = ToolRegistry()
-        self.eval_runs: dict[str, EvalRunResponse] = {}
+        self.model: ModelProvider = self._create_model()
+        self.tools = self._create_tools()
         self._background_tasks: set[asyncio.Task[None]] = set()
 
+    def _create_model(self) -> ModelProvider:
+        provider = self.settings.model_provider.lower()
+        if provider == "deepseek":
+            return DeepSeekModel(
+                api_key=self.settings.deepseek_api_key,
+                model=self.settings.model_name or "deepseek-chat",
+            )
+        return DeterministicFakeModel()
+
+    def _create_tools(self) -> ToolRegistry:
+        tools: list[Tool] = [CalculatorTool()]
+        if self.settings.web_search_enabled and self.settings.deepseek_api_key:
+            tools.append(WebSearchTool(self.settings.deepseek_api_key))
+            if self.settings.web_fetch_enabled:
+                tools.append(WebFetchTool(self.settings.deepseek_api_key))
+        return ToolRegistry(tools=tools, timeout_seconds=30.0)
+
     def _agent(self) -> ResearchAgent:
-        return ResearchAgent(model=self.model, retriever=self.retriever, tools=self.tools)
+        return ResearchAgent(
+            model=self.model,
+            retriever=self.retriever,
+            tools=self.tools,
+            web_fallback_coverage=self.settings.web_search_fallback_coverage,
+            web_fetch_enabled=self.settings.web_fetch_enabled,
+        )
 
     async def create_task(self, question: str, budget: Budget) -> tuple[str, AgentState]:
         task_id = str(uuid4())
@@ -111,7 +138,7 @@ class TaskService:
                 "prompt": "research-v1",
             },
         )
-        self.eval_runs[run_id] = run
+        await self.repository.save_eval_run(run)
         task = asyncio.create_task(self._execute_eval(run_id, cases))
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
@@ -129,10 +156,13 @@ class TaskService:
             )
             for name in metric_names
         }
-        run = self.eval_runs[run_id]
+        run = await self.repository.get_eval_run(run_id)
+        if run is None:
+            return
         run.results = results
         run.summary = summary
         run.status = "completed"
+        await self.repository.save_eval_run(run)
 
-    def get_eval_run(self, run_id: str) -> EvalRunResponse | None:
-        return self.eval_runs.get(run_id)
+    async def get_eval_run(self, run_id: str) -> EvalRunResponse | None:
+        return await self.repository.get_eval_run(run_id)

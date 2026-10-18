@@ -19,7 +19,12 @@ async def test_document_to_answer_to_evaluation_journey(tmp_path: Path) -> None:
     service = TaskService(
         repository,
         HybridRetriever(),
-        Settings(database_url=f"sqlite+aiosqlite:///{database.as_posix()}"),
+        Settings(
+            database_url=f"sqlite+aiosqlite:///{database.as_posix()}",
+            model_provider="fake",
+            deepseek_api_key="",
+            web_search_enabled=False,
+        ),
     )
     try:
         documents = await service.add_document(
@@ -55,7 +60,7 @@ async def test_document_to_answer_to_evaluation_journey(tmp_path: Path) -> None:
         )
         current = None
         for _ in range(100):
-            current = service.get_eval_run(run.id)
+            current = await service.get_eval_run(run.id)
             if current and current.status == "completed":
                 break
             await asyncio.sleep(0.01)

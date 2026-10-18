@@ -14,9 +14,11 @@ from packages.agent_core.models import (
     AgentState,
     Citation,
     Evidence,
+    ResearchStep,
     StepStatus,
     TaskStatus,
 )
+from packages.retrieval.chunking import chunk_text
 from packages.retrieval.hybrid import HybridRetriever
 from packages.tools.registry import ToolRegistry
 
@@ -32,11 +34,15 @@ class ResearchAgent:
         retriever: HybridRetriever,
         tools: ToolRegistry | None = None,
         min_evidence_score: float = 0.08,
+        web_fallback_coverage: float = 0.35,
+        web_fetch_enabled: bool = True,
     ) -> None:
         self.model = model
         self.retriever = retriever
         self.tools = tools or ToolRegistry()
         self.min_evidence_score = min_evidence_score
+        self.web_fallback_coverage = web_fallback_coverage
+        self.web_fetch_enabled = web_fetch_enabled
         self._sequence = 0
 
     async def run(self, state: AgentState, sink: EventSink | None = None) -> AgentState:
@@ -99,6 +105,8 @@ class ResearchAgent:
             tool_evidence = await self._maybe_calculate(state, step.query, sink)
             if tool_evidence is not None:
                 accepted.append(tool_evidence)
+            web_evidence = await self._maybe_web_search(state, step, hits, sink)
+            accepted.extend(web_evidence)
             for item in accepted:
                 if item.document_id not in seen:
                     state.evidence.append(item)
@@ -112,6 +120,128 @@ class ResearchAgent:
                 f"接受 {len(accepted)} 条证据",
                 {"query": step.query, "accepted": len(accepted)},
             )
+
+    async def _maybe_web_search(
+        self,
+        state: AgentState,
+        step: ResearchStep,
+        hits: list[Any],
+        sink: EventSink | None,
+    ) -> list[Evidence]:
+        top_hit = max(hits, key=lambda hit: hit.coverage, default=None)
+        top_coverage = top_hit.coverage if top_hit else 0.0
+        if top_coverage >= self.web_fallback_coverage:
+            return []
+        if not state.budget.consume_tool_call():
+            state.warnings.append("tool_budget_exhausted")
+            return []
+        query = step.query[:128]
+        await self._emit(
+            state,
+            sink,
+            "tool_started",
+            "web_search",
+            f"本地证据不足，联网检索：{query}",
+        )
+        result = await self.tools.execute(
+            "web_search",
+            {"query": query, "count": 5, "ori_question": state.question},
+        )
+        if not result.ok:
+            if result.error_code != "tool_not_allowed":
+                state.warnings.append(result.error_code or "web_search_failure")
+            await self._emit(
+                state,
+                sink,
+                "tool_completed",
+                "web_search",
+                result.error_code or "联网检索结束",
+                {"ok": False, "error_code": result.error_code},
+            )
+            return []
+        evidence_list = [
+            Evidence(
+                document_id=item["document_id"],
+                title=item["title"],
+                content=item["summary"],
+                score=item["score"],
+                source="web://search",
+                metadata={
+                    key: item[key]
+                    for key in ("url", "site_name", "date", "authority")
+                    if item.get(key) is not None
+                },
+            )
+            for item in result.metadata.get("results", [])
+        ]
+        if self.web_fetch_enabled and evidence_list:
+            fetched = await self._maybe_web_fetch(state, evidence_list[0], sink)
+            if fetched is not None:
+                evidence_list = [fetched, *evidence_list]
+        await self._emit(
+            state,
+            sink,
+            "tool_completed",
+            "web_search",
+            f"获得 {len(evidence_list)} 条网页证据",
+            {
+                "ok": True,
+                "results": len(evidence_list),
+                "items": [
+                    {
+                        "title": item["title"],
+                        "url": item["url"],
+                        "score": item["score"],
+                    }
+                    for item in result.metadata.get("results", [])
+                ],
+            },
+        )
+        return evidence_list
+
+    async def _maybe_web_fetch(
+        self,
+        state: AgentState,
+        evidence: Evidence,
+        sink: EventSink | None,
+    ) -> Evidence | None:
+        url = evidence.metadata.get("url")
+        if not isinstance(url, str) or not url:
+            return None
+        if not state.budget.consume_tool_call():
+            state.warnings.append("tool_budget_exhausted")
+            return None
+        await self._emit(state, sink, "tool_started", "web_fetch", f"深度抓取：{url}")
+        result = await self.tools.execute("web_fetch", {"url": url})
+        preview = result.output[:600] if result.ok else ""
+        await self._emit(
+            state,
+            sink,
+            "tool_completed",
+            "web_fetch",
+            result.metadata.get("title") or result.error_code or "抓取结束",
+            {
+                "ok": result.ok,
+                "error_code": result.error_code,
+                "url": url,
+                "title": result.metadata.get("title"),
+                "content_preview": preview,
+                "content_length": len(result.output),
+            },
+        )
+        if not result.ok:
+            state.warnings.append(result.error_code or "web_fetch_failure")
+            return None
+        chunks = chunk_text(result.output)[:2]
+        content = "\n\n".join(chunks)
+        return Evidence(
+            document_id=evidence.document_id,
+            title=result.metadata.get("title") or evidence.title,
+            content=content,
+            score=max(evidence.score, 0.5),
+            source="web://fetch",
+            metadata={**evidence.metadata, "url": url},
+        )
 
     async def _maybe_calculate(
         self,

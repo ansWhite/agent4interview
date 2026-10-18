@@ -50,7 +50,12 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
+    allow_origins=[
+        f"{scheme}://{host}:{port}"
+        for scheme in ("http",)
+        for host in ("127.0.0.1", "localhost")
+        for port in range(3000, 3011)
+    ],
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Last-Event-ID"],
@@ -124,7 +129,7 @@ async def create_evaluation(request: CreateEvalRunRequest) -> EvalRunResponse:
 
 @app.get("/evaluations/runs/{run_id}", response_model=EvalRunResponse)
 async def get_evaluation(run_id: str) -> EvalRunResponse:
-    run = service.get_eval_run(run_id)
+    run = await service.get_eval_run(run_id)
     if run is None:
         raise HTTPException(
             status_code=404, detail={"code": "eval_run_not_found", "message": run_id}

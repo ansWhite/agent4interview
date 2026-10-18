@@ -9,6 +9,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from apps.api.app.schemas import EvalRunResponse
 from packages.agent_core.models import AgentEvent, AgentState
 from packages.retrieval.hybrid import Document
 
@@ -47,6 +48,17 @@ class DocumentRecord(Base):
     content: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(200))
     metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
+class EvalRunRecord(Base):
+    __tablename__ = "eval_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Repository:
@@ -138,3 +150,30 @@ class Repository:
                 )
                 for record in records
             ]
+
+    async def save_eval_run(self, run: EvalRunResponse) -> None:
+        now = datetime.now(UTC)
+        payload = run.model_dump_json()
+        async with self.session_factory() as session:
+            record = await session.get(EvalRunRecord, run.id)
+            if record is None:
+                session.add(
+                    EvalRunRecord(
+                        id=run.id,
+                        name=run.name,
+                        status=run.status,
+                        payload_json=payload,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+            else:
+                record.status = run.status
+                record.payload_json = payload
+                record.updated_at = now
+            await session.commit()
+
+    async def get_eval_run(self, run_id: str) -> EvalRunResponse | None:
+        async with self.session_factory() as session:
+            record = await session.get(EvalRunRecord, run_id)
+            return EvalRunResponse.model_validate_json(record.payload_json) if record else None

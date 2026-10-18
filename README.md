@@ -6,6 +6,7 @@ InsightAgent 是一个面向技术调研场景的可控、可观测、可评测 
 
 - 有预算边界的 planner → retrieve → grade → synthesize → verify 工作流
 - BM25 + hashed dense retrieval + RRF 融合与轻量重排
+- DeepSeek 联网检索：本地覆盖率不足时自动触发 web search，头部结果支持二段式 fetch 深抓（含 SSRF 防护）
 - Tool allowlist、参数校验、超时与调用预算
 - SSE 实时事件、trace replay 与错误恢复
 - 检索和 Agent 指标、配置对比与消融实验入口
